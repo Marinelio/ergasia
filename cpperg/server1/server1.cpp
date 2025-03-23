@@ -39,7 +39,11 @@ void loadUsers() {
     
     string email, password, verified_str;
     while (file >> email >> password >> verified_str) {
-        users.push_back({ email, password, (verified_str == "1") });
+        bool isVerified = false;
+        if (verified_str == "1") {
+            isVerified = true;
+        }
+        users.push_back({ email, password, isVerified });
     }
     file.close();
     cout << "Loaded " << users.size() << " users from file." << endl;
@@ -54,8 +58,13 @@ void saveUsers() {
     }
     
     for (const auto& user : users) {
-        file << user.email << " " << user.password << " " 
-             << (user.verified ? "1" : "0") << endl;
+        string verifiedFlag;
+        if (user.verified) {
+            verifiedFlag = "1";
+        } else {
+            verifiedFlag = "0";
+        }
+        file << user.email << " " << user.password << " " << verifiedFlag << endl;
     }
     file.close();
     cout << "Users saved to file." << endl;
@@ -228,30 +237,35 @@ int main() {
                     size_t separator = message.find('|');
                     string email = message.substr(6, separator - 6);
                     string password = message.substr(separator + 1);
-                    response = validateLogin(email, password)
-                                ? "OK:Login successful"
-                                : "ERROR:Invalid credentials or account not verified";
+                    
+                    // Replaced ternary operator with if-else for better readability
+                    if (validateLogin(email, password)) {
+                        response = "OK:Login successful";
+                    } else {
+                        response = "ERROR:Invalid credentials or account not verified";
+                    }
                 }
                 else if (message.rfind("CHAT:", 0) == 0) {
                     // Format: CHAT:message
-                    // Broadcast chat message to all connected clients
+                    // Broadcast chat message to all connected clients except the sender
                     string chatMsg = message.substr(5);
-                    response = "CHAT from client: " + chatMsg;
+                    string broadcastMessage = "CHAT from client: " + chatMsg;
                     
-                    // Send to all connected clients
+                    // Send to all connected clients except the sender
                     for (size_t i = 0; i < server->peerCount; i++) {
                         ENetPeer* peer = &server->peers[i];
-                        if (peer->state == ENET_PEER_STATE_CONNECTED) {
+                        // Only send to connected peers that are not the sender
+                        if (peer->state == ENET_PEER_STATE_CONNECTED && peer != event.peer) {
                             ENetPacket* packet = enet_packet_create(
-                                response.c_str(),
-                                response.size() + 1, 
+                                broadcastMessage.c_str(),
+                                broadcastMessage.size() + 1, 
                                 ENET_PACKET_FLAG_RELIABLE
                             );
                             enet_peer_send(peer, 0, packet);
                         }
                     }
-                    enet_packet_destroy(event.packet);
-                    continue; // Skip sending separate reply
+                    // Send acknowledgment to sender
+                    response = "Message sent";
                 }
                 else {
                     response = "ERROR:Unknown command";

@@ -265,9 +265,9 @@ int application(){
     // --- CONNECT TO SERVER ---
     // Set server address
     ENetAddress address;
-    enet_address_set_host(&address, "127.0.0.1");  // Server IP address
-    address.port = 25555;                               // Server port
-
+    enet_address_set_host(&address, "192.168.2.6");  // Server IP address
+    address.port = 25555;                           // Fixed port to match server (25555)
+    
     // Attempt connection
     ENetPeer* peer = enet_host_connect(client, &address, 2, 0);
     if (!peer) {
@@ -279,8 +279,14 @@ int application(){
 
     // Wait for connection success/failure (5 second timeout)
     ENetEvent event;
+    bool connectionSuccessful = false;
+    
     if (enet_host_service(client, &event, 5000) > 0 && 
         event.type == ENET_EVENT_TYPE_CONNECT) {
+        connectionSuccessful = true;
+    }
+    
+    if (connectionSuccessful) {
         cout << "Connected to server!" << endl;
     } else {
         cerr << "Connection failed!" << endl;
