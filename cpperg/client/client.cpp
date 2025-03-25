@@ -197,9 +197,9 @@ string sendMessage(ENetPeer* peer, const string& message, ENetHost* client) {
     enet_peer_send(peer, 0, packet);
     enet_host_flush(client);  // Force immediate sending
 
-    // Wait for server response (up to 5 seconds)
+    // Wait for server response (up to 10 seconds)
     ENetEvent event;
-    while (enet_host_service(client, &event, 5000) > 0) {
+    while (enet_host_service(client, &event, 10000) > 0) {
         if (event.type == ENET_EVENT_TYPE_RECEIVE) {
             // Convert received data to string
             string response = reinterpret_cast<char*>(event.packet->data);
@@ -474,11 +474,11 @@ int application() {
         return EXIT_FAILURE;
     }
 
-    // Wait for connection success/failure (5 second timeout)
+    // Wait for connection success/failure (10 second timeout)
     ENetEvent event;
     bool connectionSuccessful = false;
     
-    if (enet_host_service(client, &event, 5000) > 0 && 
+    if (enet_host_service(client, &event, 10000) > 0 && 
         event.type == ENET_EVENT_TYPE_CONNECT) {
         connectionSuccessful = true;
     }
