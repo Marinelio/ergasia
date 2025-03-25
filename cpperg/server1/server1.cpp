@@ -195,8 +195,8 @@ int main() {
     // Main server loop
     ENetEvent event;
     while (true) {
-        // Process network events with a 1-second timeout
-        while (enet_host_service(server, &event, 1000) > 0) {
+        // Process network events with a 10-second timeout
+        while (enet_host_service(server, &event, 10000) > 0) {
             // Handle different types of network events
             if (event.type == ENET_EVENT_TYPE_CONNECT) {
                 // New client connected

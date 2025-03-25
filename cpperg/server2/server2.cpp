@@ -118,8 +118,8 @@ int main() {
     while (true) {
         ENetEvent event;
         
-        // Wait for events (with 1000ms timeout)
-        while (enet_host_service(server, &event, 1000) > 0) {
+        // Wait for events (with 10s timeout)
+        while (enet_host_service(server, &event, 10000) > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT:
                     cout << "Client connected from " 
