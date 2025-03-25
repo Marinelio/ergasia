@@ -321,7 +321,7 @@ void chatApp(ENetPeer* peer, ENetHost* client) {
         }
         
         // Prevent CPU overuse
-        Sleep(10);  // Pause for 10 milliseconds
+        Sleep(5);  // Pause for 5 milliseconds
     }
 }
 
