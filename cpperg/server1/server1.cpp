@@ -112,7 +112,7 @@ string generateVerificationCode() {
 // Send verification code via external Python script
 void sendEmail(const string& email, const string& code) {
     // Call Python script to send the actual email
-    string command = "python ../script/send_email.py " + email + " " + code;
+    string command = "python ./script/send_email.py " + email + " " + code;
     system(command.c_str());
     cout << "Verification email sent to: " << email << endl;
 }

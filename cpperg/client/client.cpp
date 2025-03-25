@@ -462,7 +462,7 @@ int application() {
     // --- CONNECT TO SERVER ---
     // Set server address
     ENetAddress address;
-    enet_address_set_host(&address, "192.168.2.3");  // Server IP address
+    enet_address_set_host(&address, "127.0.0.1");  // Server IP address
     address.port = 25555;                           // Fixed port to match server (25555)
     
     // Attempt connection
