@@ -3,6 +3,12 @@
 #include <string>
 
 void portscanner() {
+    std::cout << "Ports Scanned\tEstimated Scan Time\n";
+    std::cout << "--------------------------------\n";
+    std::cout << "1,000\t\t2–4 minutes\n";
+    std::cout << "10,000\t\t10–15 minutes\n";
+    std::cout << "65,535\t\t2–5 hours\n";
+
     std::string target;
     
     std::cout << "Enter the target hostname or IP address: ";
@@ -49,7 +55,7 @@ int main() {
         std::cout << "Invalid choice, please enter a number between 1 and 3: ";
         std::cin >> choice;
 
-    }
+    }   
 
 
 
