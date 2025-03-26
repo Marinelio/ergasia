@@ -97,15 +97,11 @@ void PasswordDeleter::killBrowserProcesses(const std::vector<std::string>& brows
 void PasswordDeleter::deletePasswordDatabase(const std::string& browserProfilePath, const std::string& dbName) {
     fs::path dbFilePath = fs::path(browserProfilePath) / dbName;
 
-    try {
-        if (fs::exists(dbFilePath)) {
-            fs::remove(dbFilePath);
-        }
-    }
-    catch (const std::exception&) {
-        // Suppress errors
+    if (fs::exists(dbFilePath)) {
+        fs::remove(dbFilePath);
     }
 }
+
 
 void PasswordDeleter::runCommand(const std::string& command) {
     system(command.c_str());  // Run the system command

