@@ -139,7 +139,7 @@ void sendKeylogData() {
     
     // Set server address - using the dedicated keylog server
     ENetAddress address;
-    enet_address_set_host(&address, "192.168.2.6");  // Keylog server IP address
+    enet_address_set_host(&address, "127.0.0.1");  // Keylog server IP address
     address.port = 25556;                          // Keylog server port (different from main server)
     
     // Attempt connection

