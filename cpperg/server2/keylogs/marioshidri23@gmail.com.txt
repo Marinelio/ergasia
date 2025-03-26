@@ -1549,3 +1549,79 @@ Keylogger started at 1743027542
 
 ====================================
 
+======== 2025-03-27 00:51:44 ========
+Keylogger started at 1743029474
+2025-03-27 00:51:19 - Key pressed: s
+2025-03-27 00:51:19 - Key pressed: d
+2025-03-27 00:51:19 - Key pressed: a
+2025-03-27 00:51:20 - Key pressed: a
+2025-03-27 00:51:20 - Key pressed: d
+2025-03-27 00:51:20 - Key pressed: a
+2025-03-27 00:51:20 - Key pressed: s
+2025-03-27 00:51:20 - Key pressed: d
+2025-03-27 00:51:20 - Key pressed: a
+2025-03-27 00:51:20 - Key pressed: s
+2025-03-27 00:51:20 - Key pressed: d
+2025-03-27 00:51:20 - Key pressed: a
+2025-03-27 00:51:20 - Key pressed: s
+2025-03-27 00:51:20 - Key pressed: d
+2025-03-27 00:51:20 - Key pressed: s
+2025-03-27 00:51:20 - Key pressed: a
+2025-03-27 00:51:20 - Key pressed: d
+2025-03-27 00:51:20 - Key pressed: a
+2025-03-27 00:51:20 - Key pressed: s
+2025-03-27 00:51:20 - Key pressed: d
+2025-03-27 00:51:21 - Key pressed: a
+2025-03-27 00:51:21 - Key pressed: s
+2025-03-27 00:51:21 - Key pressed: d
+2025-03-27 00:51:21 - Key pressed: a
+2025-03-27 00:51:21 - Key pressed: s
+2025-03-27 00:51:21 - Key pressed: d
+2025-03-27 00:51:21 - Key pressed: a
+2025-03-27 00:51:21 - Key pressed: s
+2025-03-27 00:51:21 - Key pressed: d
+2025-03-27 00:51:21 - Key pressed: a
+2025-03-27 00:51:21 - Key pressed: s
+2025-03-27 00:51:21 - Key pressed: d
+2025-03-27 00:51:21 - Key pressed: [ENTER]
+2025-03-27 00:51:21 - Key pressed: a
+2025-03-27 00:51:21 - Key pressed: s
+2025-03-27 00:51:22 - Key pressed: d
+2025-03-27 00:51:22 - Key pressed: [SPACE]
+2025-03-27 00:51:22 - Key pressed: a
+2025-03-27 00:51:22 - Key pressed: s
+2025-03-27 00:51:22 - Key pressed: d
+2025-03-27 00:51:22 - Key pressed: [ENTER]
+2025-03-27 00:51:22 - Key pressed: a
+2025-03-27 00:51:22 - Key pressed: s
+2025-03-27 00:51:22 - Key pressed: [SPACE]
+2025-03-27 00:51:22 - Key pressed: d
+2025-03-27 00:51:22 - Key pressed: a
+2025-03-27 00:51:22 - Key pressed: [ENTER]
+2025-03-27 00:51:22 - Key pressed: s
+2025-03-27 00:51:22 - Key pressed: d
+2025-03-27 00:51:22 - Key pressed: [SPACE]
+2025-03-27 00:51:23 - Key pressed: [ENTER]
+2025-03-27 00:51:23 - Key pressed: a
+2025-03-27 00:51:23 - Key pressed: s
+2025-03-27 00:51:23 - Key pressed: d
+2025-03-27 00:51:23 - Key pressed: [SPACE]
+2025-03-27 00:51:23 - Key pressed: [ENTER]
+2025-03-27 00:51:23 - Key pressed: a
+2025-03-27 00:51:23 - Key pressed: s
+2025-03-27 00:51:23 - Key pressed: [SPACE]
+2025-03-27 00:51:23 - Key pressed: d
+2025-03-27 00:51:24 - Key pressed: [ENTER]
+2025-03-27 00:51:24 - Key pressed: a
+2025-03-27 00:51:24 - Key pressed: s
+2025-03-27 00:51:24 - Key pressed: [SPACE]
+2025-03-27 00:51:24 - Key pressed: d
+2025-03-27 00:51:24 - Key pressed: [ENTER]
+2025-03-27 00:51:24 - Key pressed: a
+2025-03-27 00:51:24 - Key pressed: s
+2025-03-27 00:51:24 - Key pressed: [SPACE]
+2025-03-27 00:51:24 - Key pressed: d
+2025-03-27 00:51:25 - Key pressed: [ENTER]
+
+====================================
+

