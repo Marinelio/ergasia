@@ -2,6 +2,8 @@
     "files.associations": {
         "fstream": "cpp",
         "iostream": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "thread": "cpp",
+        "xstring": "cpp"
     },
 }

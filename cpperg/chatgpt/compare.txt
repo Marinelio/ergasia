@@ -1,0 +1,150 @@
+server
+
+
+#include <iostream>
+#include <string>
+#include <vector>
+#include <thread>
+#include <asio.hpp>  // Requires Boost.Asio
+
+using asio::ip::tcp;
+std::vector<tcp::socket> clients;
+
+void handle_client(tcp::socket client_socket) {
+    try {
+        std::string message;
+        while (true) {
+            char buffer[1024];
+            std::memset(buffer, 0, sizeof(buffer));
+            asio::error_code error;
+            size_t len = client_socket.read_some(asio::buffer(buffer), error);
+            if (error) {
+                std::cerr << "Error receiving message: " << error.message() << std::endl;
+                break;
+            }
+            message = std::string(buffer, len);
+            std::cout << "Received: " << message << std::endl;
+
+            // Broadcast the message to all clients
+            for (auto& client : clients) {
+                if (client.is_open()) {
+                    asio::write(client, asio::buffer(message), error);
+                    if (error) {
+                        std::cerr << "Error sending message to client: " << error.message() << std::endl;
+                    }
+                }
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Client connection error: " << e.what() << std::endl;
+    }
+}
+
+int main() {
+    try {
+        asio::io_context io_context;
+        tcp::acceptor acceptor(io_context, tcp::endpoint(tcp::v4(), 12345));
+
+        std::cout << "Server running on port 12345...\n";
+
+        while (true) {
+            tcp::socket client_socket(io_context);
+            acceptor.accept(client_socket);
+            clients.push_back(std::move(client_socket));
+            std::thread(handle_client, std::move(client_socket)).detach();
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Server error: " << e.what() << std::endl;
+    }
+
+    return 0;
+}
+
+
+
+
+client 
+#include <iostream>
+#include <string>
+#include <asio.hpp>  // Requires Boost.Asio
+
+using asio::ip::tcp;
+
+void receive_messages(tcp::socket& socket) {
+    try {
+        while (true) {
+            char buffer[1024];
+            std::memset(buffer, 0, sizeof(buffer));
+            asio::error_code error;
+            size_t len = socket.read_some(asio::buffer(buffer), error);
+            if (error) {
+                std::cerr << "Error receiving message: " << error.message() << std::endl;
+                break;
+            }
+            std::cout << "Message from server: " << std::string(buffer, len) << std::endl;
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Client receive error: " << e.what() << std::endl;
+    }
+}
+
+int main() {
+    try {
+        asio::io_context io_context;
+        tcp::socket socket(io_context);
+        socket.connect(tcp::endpoint(asio::ip::address::from_string("127.0.0.1"), 12345));
+
+        std::cout << "Connected to server. You can start chatting...\n";
+
+        std::thread(receive_messages, std::ref(socket)).detach();
+
+        std::string message;
+        while (true) {
+            std::getline(std::cin, message);
+            if (message == "exit") {
+                break;
+            }
+            asio::write(socket, asio::buffer(message));
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Client error: " << e.what() << std::endl;
+    }
+
+    return 0;
+}
+
+
+keylogger 
+
+It's important to address that creating and using keyloggers without explicit consent is illegal and unethical. Keyloggers are tools that can record keystrokes, and they are often associated with malicious activities such as hacking, privacy invasion, and unauthorized data collection. Using keyloggers for malicious purposes or without proper authorization can violate privacy laws and ethical guidelines.
+
+However, for educational purposes, it’s crucial to focus on learning about cybersecurity in a responsible manner. You can learn about keyloggers in a safe and legal context, such as in penetration testing environments where you have explicit permission to do so, or within controlled, ethical hacking labs designed to help individuals understand security vulnerabilities.
+
+If you are interested in learning about keylogging or security techniques in an ethical way, I recommend:
+
+Learning about cybersecurity principles.
+
+Understanding how malicious software works and how to defend against it.
+
+Setting up your own penetration testing environment in a controlled manner.
+
+Using safe and legal frameworks like Kali Linux for ethical hacking.
+
+If you need more information about ethical hacking practices, feel free to ask!
+
+
+
+coockie destroyer 
+Creating and using tools that can destroy or compromise cookies or any form of user data without consent is both unethical and potentially illegal. Cookies are used to store important information, such as authentication data and preferences, and tampering with them can lead to unauthorized access to accounts and personal information, violating privacy and security.
+
+If you're looking to learn about how cookies work and how they can be managed securely, I can provide guidance on ethical security practices related to cookies, such as:
+
+How cookies work in web applications (for storing sessions, preferences, etc.).
+
+How to protect cookies using security measures like HttpOnly, Secure, and SameSite flags.
+
+Ethical use of cookies in web development to enhance user experience without compromising privacy.
+
+If you're learning web security or penetration testing, I highly encourage you to focus on responsible and ethical hacking practices. There are frameworks and platforms like OWASP WebGoat, Hack The Box, or TryHackMe that offer environments where you can safely practice penetration testing and learn about security vulnerabilities in a controlled, ethical way.
+
+Would you like to explore how to secure cookies or learn about web security concepts? Let me know!

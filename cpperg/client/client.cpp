@@ -301,27 +301,28 @@ void chatApp(ENetPeer* peer, ENetHost* client) {
                 }
                 
                 // Reset input prompt
-                cout << "You: " << flush;
+                cout << "You: " << flush; // flush only flushes the buffer but does not add a newline.
             }
             // Handle Backspace key
             else if (ch == 8) {  // 8 is ASCII code for Backspace
                 if (!userInput.empty()) {
                     userInput.pop_back();  // Remove last character
-                    cout << "\b \b" << flush;  // Erase character from display
+                    cout << "\b \b" << flush;  // Erase character from display , only flushes the buffer but does not add a newline.
                 }
             }
             // Handle regular character input
             else if (ch >= 32) {  // Only accept printable characters
                 // Limit input length to prevent buffer issues
+                // the newline character \n or the carriage return \r  or the others are  not allowed 
                 if (userInput.length() < 500) {
                     userInput.push_back(ch);  // Add character to input
-                    cout << ch << flush;      // Display character
+                    cout << ch << flush;      // Display character , only flushes the buffer but does not add a newline.
                 }
             }
         }
         
         // Prevent CPU overuse
-        Sleep(5);  // Pause for 5 milliseconds
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));  // Pause for 5 milliseconds
     }
 }
 
