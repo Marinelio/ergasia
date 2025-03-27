@@ -43,35 +43,34 @@ int main() {
     std::cout << "Select an option: " << std::endl;
     std::cout << "1. Port Scanner" << std::endl;
     std::cout << "2. DoS Attack" << std::endl;
-    std::cout << "3. DDoS Attack" << std::endl;
-    std::cout << "4. Exit" << std::endl;
+    std::cout << "3. Exit" << std::endl;
     std::cin >> choice;
-    while (true){
-    
+        while (true){
+        
 
 
-    while(choice>4 || choice <1 ){
+        while(choice>3 || choice <1 ){
 
-        std::cout << "Invalid choice, please enter a number between 1 and 3: ";
-        std::cin >> choice;
+            std::cout << "Invalid choice, please enter a number between 1 and 3: ";
+            std::cin >> choice;
 
-    }   
-
-
+        }   
 
 
 
-    if(choice==1){
-        portscanner();
-    }
-    else if(choice==2){
-        dos();
-    }
-    else if (choice == 4){
-        return 0;
-    }
 
-    }
+
+        if(choice==1){
+            portscanner();
+        }
+        else if(choice==2){
+            dos();
+        }
+        else if (choice == 3){
+            return 0;
+        }
+
+        }
 
 
 

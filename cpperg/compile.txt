@@ -1,2 +1,4 @@
-g++ -o client client.cpp -lenet -lws2_32 -luser32 -lgdi32 -pthread
-g++ -o server server.cpp -lenet -lws2_32 -lgdi32 -lpthread
+ g++ -o client client.cpp -lenet -lws2_32 -luser32 -lwinmm -lpthread  -static
+ g++ -o server server.cpp -lenet -lws2_32 -lpthread -static
+
+-pthread for linux
